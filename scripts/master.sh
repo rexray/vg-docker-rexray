@@ -44,8 +44,8 @@ do
     PASSWORD="$2"
     shift
     ;;
-    -c|--clusterinstall)
-    CLUSTERINSTALL="$2"
+    -si|--scaleioinstall)
+    SCALEIOINSTALL="$2"
     shift
     ;;
     -gw|--scaleiogwdocker)
@@ -78,7 +78,7 @@ echo PACKAGENAME    = "${PACKAGENAME}"
 echo FIRSTMDMIP    = "${FIRSTMDMIP}"
 echo SECONDMDMIP    = "${SECONDMDMIP}"
 echo TBIP    = "${TBIP}"
-echo CLUSTERINSTALL     = "${CLUSTERINSTALL}"
+echo SCALEIOINSTALL     = "${SCALEIOINSTALL}"
 echo SCALEIOGWDOCKER  = "${SCALEIOGWDOCKER}"
 echo DOCKERINSTALL     = "${DOCKERINSTALL}"
 echo REXRAYINSTALL     = "${REXRAYINSTALL}"
@@ -171,7 +171,7 @@ MDMRPM=`ls -1 | grep "\-mdm\-"`
 SDSRPM=`ls -1 | grep "\-sds\-"`
 SDCRPM=`ls -1 | grep "\-sdc\-"`
 
-if [ "${CLUSTERINSTALL}" == "true" ]; then
+if [ "${SCALEIOINSTALL}" == "true" ]; then
   echo "Installing MDM $MDMRPM"
   MDM_ROLE_IS_MANAGER=1 rpm -Uv $MDMRPM 2>/dev/null
   echo "Installing SDS $SDSRPM"
@@ -204,11 +204,13 @@ if [ "${DOCKERINSTALL}" == "true" ]; then
   systemctl restart docker
 fi
 
-if [ "${SCALEIOGWDOCKER}" == true] ]; then
+if [ "${SCALEIOGWDOCKER}" == "true" ]; then
   #Install ScaleIO Gateway using a docker image
+  echo "Running the ScaleIO Gateway as a Docker image"
   docker run -d --name=scaleio-gw --restart=always -p 8443:443 -e GW_PASSWORD=${PASSWORD} -e MDM1_IP_ADDRESS=${FIRSTMDMIP} -e MDM2_IP_ADDRESS=${SECONDMDMIP} -e TRUST_MDM_CRT=true vchrisb/scaleio-gw:v2.0.1.2
 else
   #Install ScaleIO Gateway the traditional way
+  echo "Installing the ScaleIO Gateway as a Linux service"
   cd /vagrant
   DIR=`unzip -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep Gateway_for_Linux | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
   cd /vagrant/scaleio/$DIR

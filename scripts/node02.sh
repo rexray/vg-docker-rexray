@@ -44,8 +44,8 @@ do
     PASSWORD="$2"
     shift
     ;;
-    -c|--clusterinstall)
-    CLUSTERINSTALL="$2"
+    -si|--scaleioinstall)
+    SCALEIOINSTALL="$2"
     shift
     ;;
     -dk|--dockerinstall)
@@ -78,7 +78,7 @@ echo PACKAGENAME    = "${PACKAGENAME}"
 echo FIRSTMDMIP    = "${FIRSTMDMIP}"
 echo SECONDMDMIP    = "${SECONDMDMIP}"
 echo TBIP    = "${TBIP}"
-echo CLUSTERINSTALL = "${CLUSTERINSTALL}"
+echo SCALEIOINSTALL = "${SCALEIOINSTALL}"
 echo DOCKERINSTALL     = "${DOCKERINSTALL}"
 echo REXRAYINSTALL     = "${REXRAYINSTALL}"
 echo SWARMINSTALL     = "${SWARMINSTALL}"
@@ -123,7 +123,7 @@ MDMRPM=`ls -1 | grep "\-mdm\-"`
 SDSRPM=`ls -1 | grep "\-sds\-"`
 SDCRPM=`ls -1 | grep "\-sdc\-"`
 
-if [ "${CLUSTERINSTALL}" == "true" ]; then
+if [ "${SCALEIOINSTALL}" == "true" ]; then
   echo "Installing MDM $MDMRPM"
   MDM_ROLE_IS_MANAGER=0 rpm -Uv $MDMRPM 2>/dev/null
   echo "Installing SDS $SDSRPM"

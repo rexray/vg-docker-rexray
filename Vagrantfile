@@ -26,14 +26,14 @@ tbip = "#{network}.13"
 # Install ScaleIO cluster automatically or IM only
 #If True a fully working ScaleIO cluster is installed. False mean only IM is installed on node MDM1.
 if ENV['VG_SCALEIO_INSTALL']
-  clusterinstall = ENV['SCALEIO_CLUSTER_INSTALL'].to_s.downcase
+  scaleioinstall = ENV['SCALEIO_CLUSTER_INSTALL'].to_s.downcase
 else
-  clusterinstall = "true"
+  scaleioinstall = "true"
 end
 
 #Install The ScaleIO Gateway the traditional way or using a container
 if ENV['VG_SCALEIO_GW_DOCKER']
-  scaleiogwdocker = ENV['SCALEIO_CLUSTER_INSTALL'].to_s.downcase
+  scaleiogwdocker = ENV['VG_SCALEIO_GW_DOCKER'].to_s.downcase
 else
   scaleiogwdocker = "true"
 end
@@ -126,7 +126,7 @@ Vagrant.configure("2") do |config|
 
         node_config.vm.provision "shell" do |s|
           s.path = "scripts/master.sh"
-          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -c #{clusterinstall} -gw#{scaleiogwdocker} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall}"
+          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -si #{scaleioinstall} -gw #{scaleiogwdocker} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall}"
         end
       end
 
@@ -134,7 +134,7 @@ Vagrant.configure("2") do |config|
         node_config.vm.network "private_network", ip: "#{secondmdmip}"
         node_config.vm.provision "shell" do |s|
           s.path = "scripts/node01.sh"
-          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -c #{clusterinstall} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall}"
+          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -si #{scaleioinstall} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall}"
         end
       end
 
@@ -142,7 +142,7 @@ Vagrant.configure("2") do |config|
         node_config.vm.network "private_network", ip: "#{tbip}"
         node_config.vm.provision "shell" do |s|
           s.path = "scripts/node02.sh"
-          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -c #{clusterinstall} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall} -vf #{verifyfiles}"
+          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -si #{scaleioinstall} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall} -vf #{verifyfiles}"
         end
       end
 
