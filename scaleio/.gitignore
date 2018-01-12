@@ -1,8 +1,0 @@
-ECS*
-EMC-ScaleIO*
-.vagrant
-ScaleIO*
-.DS_Store
-gui/
-swarm_worker_token
-swarm_manager_token
