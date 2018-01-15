@@ -85,18 +85,6 @@ echo REXRAYINSTALL     = "${REXRAYINSTALL}"
 echo SWARMINSTALL     = "${SWARMINSTALL}"
 echo ZIP_OS    = "${ZIP_OS}"
 
-VERSION_MAJOR=`echo "${VERSION}" | awk -F \. {'print $1'}`
-VERSION_MINOR=`echo "${VERSION}" | awk -F \. {'print $2'}`
-VERSION_MINOR_FIRST=`echo $VERSION_MINOR | awk -F "-" {'print $1'}`
-VERSION_MAJOR_MINOR=`echo $VERSION_MAJOR"."$VERSION_MINOR_FIRST`
-VERSION_MINOR_SUB=`echo $VERSION_MINOR | awk -F "-" {'print $2'}`
-VERSION_MINOR_SUB_FIRST=`echo $VERSION_MINOR_SUB | head -c 1`
-VERSION_SUMMARY=`echo $VERSION_MAJOR"."$VERSION_MINOR_FIRST"."$VERSION_MINOR_SUB_FIRST`
-
-echo VERSION_MAJOR = $VERSION_MAJOR
-echo VERSION_MAJOR_MINOR = $VERSION_MAJOR_MINOR
-echo VERSION_SUMMARY = $VERSION_SUMMARY
-
 echo "Checking Interface State: enp0s8"
 INTERFACE_STATE=$(cat /sys/class/net/enp0s8/operstate)
 if [ "${INTERFACE_STATE}" == "down" ]; then
@@ -108,86 +96,6 @@ echo "Adding Nodes to /etc/hosts"
 echo "192.168.50.11 master" >> /etc/hosts
 echo "192.168.50.12 node01" >> /etc/hosts
 echo "192.168.50.13 node02" >> /etc/hosts
-
-truncate -s 100GB ${DEVICE}
-yum install unzip numactl libaio rsync socat -y
-yum install java-1.8.0-openjdk -y
-
-if [ "${VERIFYFILES}" == "true" ]; then
-
-  URL="http://downloads.emc.com/emc-com/usa/ScaleIO/ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip"
-
-  echo "Verifying that the SIO package is available from downloads.emc.com"
-  echo "If you don't want this to happen set VERIFYFILES to false in the Vagrantfile"
-  if curl --output /dev/null --silent --head --fail "$URL"; then
-    echo "URL exists: $URL. Continuing."
-  else
-    echo "URL does not exist: $URL. Please try to run \"vagrant up\" again."
-    exit
-  fi
-
-  FILESIZE=`curl -sI $URL | grep Content-Length | awk '{print $2}' | tr -d $'\r' | bc -l`
-
-  if [ "$FILESIZE" -lt 1 ]; then
-    echo "The file on downloads.emc.com doesn't look correct. Please try to run \"vagrant up\" again."
-    exit
-  else
-    echo "The file on downloads.emc.com is larger than 0 bytes. Continuing."
-  fi
-
-fi
-
-cd /vagrant
-
-if [ -f "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" ]; then
-  STOREDFILE=`wc -c <"ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $1}'`
-  echo "Stored file size is" $STOREDFILE
-  echo "File on downloads.emc.com is" $FILESIZE
-  if [ "$FILESIZE" -gt "$STOREDFILE" ]; then
-    echo "The file size of the stored ScaleIO zip is incorrect. Will remove and download the new one."
-    rm "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip"
-  else
-    echo "The file sizes of the stored ScaleIO zip and the zip file on downloads.emc.com are the same. Continuing."
-  fi
-fi
-
-if [ ! -f "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" ];
-then
-  echo "Downloading SIO package from downloads.emc.com"
-  wget -nv http://downloads.emc.com/emc-com/usa/ScaleIO/ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip -O ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip
-fi
-
-
-cd /vagrant
-echo "Uncompressing SIO package"
-unzip -n "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" -d /vagrant/scaleio/
-
-DIR=`unzip -n -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep $ZIP_OS | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
-
-echo "Entering directory /vagrant/scaleio/$DIR"
-cd /vagrant/scaleio/$DIR
-
-MDMRPM=`ls -1 | grep "\-mdm\-"`
-SDSRPM=`ls -1 | grep "\-sds\-"`
-SDCRPM=`ls -1 | grep "\-sdc\-"`
-
-if [ "${SCALEIOINSTALL}" == "true" ]; then
-  echo "Installing MDM $MDMRPM"
-  MDM_ROLE_IS_MANAGER=1 rpm -Uv $MDMRPM 2>/dev/null
-  echo "Installing SDS $SDSRPM"
-  rpm -Uv $SDSRPM 2>/dev/null
-  echo "Installing SDC $SDCRPM"
-  MDM_IP=${FIRSTMDMIP},${SECONDMDMIP} rpm -Uv $SDCRPM 2>/dev/null
-fi
-
-# Copy the ScaleIO GUI application to the /vagrant directory for easy access
-cd /vagrant
-DIR=`unzip -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep GUI_for_Linux | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
-cd /vagrant/scaleio/$DIR
-GUIRPM=`ls -1 | grep rpm`
-rpm2cpio $GUIRPM | cpio -idmv
-rsync -qa opt/emc/scaleio/gui /vagrant
-rm -fr opt/
 
 if [ "${DOCKERINSTALL}" == "true" ]; then
   echo "Installing Docker"
@@ -204,23 +112,107 @@ if [ "${DOCKERINSTALL}" == "true" ]; then
   systemctl restart docker
 fi
 
-if [ "${SCALEIOGWDOCKER}" == "true" ]; then
-  #Install ScaleIO Gateway using a docker image
-  echo "Running the ScaleIO Gateway as a Docker image"
-  docker run -d --name=scaleio-gw --restart=always -p 8443:443 -e GW_PASSWORD=${PASSWORD} -e MDM1_IP_ADDRESS=${FIRSTMDMIP} -e MDM2_IP_ADDRESS=${SECONDMDMIP} -e TRUST_MDM_CRT=true vchrisb/scaleio-gw:v2.0.1.2
-else
-  #Install ScaleIO Gateway the traditional way
-  echo "Installing the ScaleIO Gateway as a Linux service"
+if [ "${SCALEIOINSTALL}" == "true" ]; then
+  VERSION_MAJOR=`echo "${VERSION}" | awk -F \. {'print $1'}`
+  VERSION_MINOR=`echo "${VERSION}" | awk -F \. {'print $2'}`
+  VERSION_MINOR_FIRST=`echo $VERSION_MINOR | awk -F "-" {'print $1'}`
+  VERSION_MAJOR_MINOR=`echo $VERSION_MAJOR"."$VERSION_MINOR_FIRST`
+  VERSION_MINOR_SUB=`echo $VERSION_MINOR | awk -F "-" {'print $2'}`
+  VERSION_MINOR_SUB_FIRST=`echo $VERSION_MINOR_SUB | head -c 1`
+  VERSION_SUMMARY=`echo $VERSION_MAJOR"."$VERSION_MINOR_FIRST"."$VERSION_MINOR_SUB_FIRST`
+
+  echo VERSION_MAJOR = $VERSION_MAJOR
+  echo VERSION_MAJOR_MINOR = $VERSION_MAJOR_MINOR
+  echo VERSION_SUMMARY = $VERSION_SUMMARY
+
+  truncate -s 100GB ${DEVICE}
+  yum install unzip numactl libaio rsync socat -y
+  yum install java-1.8.0-openjdk -y
+
+  if [ "${VERIFYFILES}" == "true" ]; then
+    URL="http://downloads.emc.com/emc-com/usa/ScaleIO/ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip"
+    echo "Verifying that the SIO package is available from downloads.emc.com"
+    echo "If you don't want this to happen set VERIFYFILES to false in the Vagrantfile"
+    if curl --output /dev/null --silent --head --fail "$URL"; then
+      echo "URL exists: $URL. Continuing."
+    else
+      echo "URL does not exist: $URL. Please try to run \"vagrant up\" again."
+      exit
+    fi
+    FILESIZE=`curl -sI $URL | grep Content-Length | awk '{print $2}' | tr -d $'\r' | bc -l`
+    if [ "$FILESIZE" -lt 1 ]; then
+      echo "The file on downloads.emc.com doesn't look correct. Please try to run \"vagrant up\" again."
+      exit
+    else
+      echo "The file on downloads.emc.com is larger than 0 bytes. Continuing."
+    fi
+  fi
+
   cd /vagrant
-  DIR=`unzip -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep Gateway_for_Linux | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
+
+  if [ -f "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" ]; then
+    STOREDFILE=`wc -c <"ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $1}'`
+    echo "Stored file size is" $STOREDFILE
+    echo "File on downloads.emc.com is" $FILESIZE
+    if [ "$FILESIZE" -gt "$STOREDFILE" ]; then
+      echo "The file size of the stored ScaleIO zip is incorrect. Will remove and download the new one."
+      rm "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip"
+    else
+      echo "The file sizes of the stored ScaleIO zip and the zip file on downloads.emc.com are the same. Continuing."
+    fi
+  fi
+
+  if [ ! -f "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" ];
+  then
+    echo "Downloading SIO package from downloads.emc.com"
+    wget -nv http://downloads.emc.com/emc-com/usa/ScaleIO/ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip -O ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip
+  fi
+
+  cd /vagrant
+  echo "Uncompressing SIO package"
+  unzip -n "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" -d /vagrant/scaleio/
+  DIR=`unzip -n -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep $ZIP_OS | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
+  echo "Entering directory /vagrant/scaleio/$DIR"
   cd /vagrant/scaleio/$DIR
-  echo "Installing GATEWAY $GWRPM"
-  GWRPM=`ls -1 | grep x86_64`
-  GATEWAY_ADMIN_PASSWORD=${PASSWORD} rpm -Uv $GWRPM --nodeps 2>/dev/null
-  sed -i 's/security.bypass_certificate_check=false/security.bypass_certificate_check=true/' /opt/emc/scaleio/gateway/webapps/ROOT/WEB-INF/classes/gatewayUser.properties
-  sed -i 's/mdm.ip.addresses=/mdm.ip.addresses='${FIRSTMDMIP}','${SECONDMDMIP}'/' /opt/emc/scaleio/gateway/webapps/ROOT/WEB-INF/classes/gatewayUser.properties
-  service scaleio-gateway start
-  service scaleio-gateway restart
+
+  MDMRPM=`ls -1 | grep "\-mdm\-"`
+  SDSRPM=`ls -1 | grep "\-sds\-"`
+  SDCRPM=`ls -1 | grep "\-sdc\-"`
+
+  echo "Installing MDM $MDMRPM"
+  MDM_ROLE_IS_MANAGER=1 rpm -Uv $MDMRPM 2>/dev/null
+  echo "Installing SDS $SDSRPM"
+  rpm -Uv $SDSRPM 2>/dev/null
+  echo "Installing SDC $SDCRPM"
+  MDM_IP=${FIRSTMDMIP},${SECONDMDMIP} rpm -Uv $SDCRPM 2>/dev/null
+
+  # Copy the ScaleIO GUI application to the /vagrant directory for easy access
+  cd /vagrant
+  DIR=`unzip -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep GUI_for_Linux | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
+  cd /vagrant/scaleio/$DIR
+  GUIRPM=`ls -1 | grep rpm`
+  rpm2cpio $GUIRPM | cpio -idmv
+  rsync -qa opt/emc/scaleio/gui /vagrant
+  rm -fr opt/
+
+  if [ "${SCALEIOGWDOCKER}" == "true" ]; then
+    #Install ScaleIO Gateway using a docker image
+    echo "Running the ScaleIO Gateway as a Docker image"
+    docker run -d --name=scaleio-gw --restart=always -p 8443:443 -e GW_PASSWORD=${PASSWORD} -e MDM1_IP_ADDRESS=${FIRSTMDMIP} -e MDM2_IP_ADDRESS=${SECONDMDMIP} -e TRUST_MDM_CRT=true vchrisb/scaleio-gw:v2.0.1.2
+  else
+    #Install ScaleIO Gateway the traditional way
+    echo "Installing the ScaleIO Gateway as a Linux service"
+    cd /vagrant
+    DIR=`unzip -l "ScaleIO_Linux_v"$VERSION_MAJOR_MINOR".zip" | awk '{print $4}' | grep Gateway_for_Linux | awk -F'/' '{print $1 "/" $2 "/" $3}' | head -1`
+    cd /vagrant/scaleio/$DIR
+    echo "Installing GATEWAY $GWRPM"
+    GWRPM=`ls -1 | grep x86_64`
+    GATEWAY_ADMIN_PASSWORD=${PASSWORD} rpm -Uv $GWRPM --nodeps 2>/dev/null
+    sed -i 's/security.bypass_certificate_check=false/security.bypass_certificate_check=true/' /opt/emc/scaleio/gateway/webapps/ROOT/WEB-INF/classes/gatewayUser.properties
+    sed -i 's/mdm.ip.addresses=/mdm.ip.addresses='${FIRSTMDMIP}','${SECONDMDMIP}'/' /opt/emc/scaleio/gateway/webapps/ROOT/WEB-INF/classes/gatewayUser.properties
+    service scaleio-gateway start
+    service scaleio-gateway restart
+  fi
 fi
 
 if [ "${REXRAYINSTALL}" == "true" ]; then

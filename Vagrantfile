@@ -26,9 +26,16 @@ tbip = "#{network}.13"
 # Install ScaleIO cluster automatically or IM only
 #If True a fully working ScaleIO cluster is installed. False mean only IM is installed on node MDM1.
 if ENV['VG_SCALEIO_INSTALL']
-  scaleioinstall = ENV['SCALEIO_CLUSTER_INSTALL'].to_s.downcase
+  scaleioinstall = ENV['VG_SCALEIO_INSTALL'].to_s.downcase
 else
   scaleioinstall = "true"
+end
+
+# Install Docker automatically
+if ENV['VG_DOCKER_INSTALL']
+  dockerinstall = ENV['VG_DOCKER_INSTALL'].to_s.downcase
+else
+  dockerinstall = "true"
 end
 
 #Install The ScaleIO Gateway the traditional way or using a container
@@ -36,25 +43,21 @@ if ENV['VG_SCALEIO_GW_DOCKER']
   scaleiogwdocker = ENV['VG_SCALEIO_GW_DOCKER'].to_s.downcase
 else
   scaleiogwdocker = "true"
-end
-
-# Install Docker automatically
-if ENV['VG_DOCKER_INSTALL']
-  dockerinstall = ENV['SCALEIO_DOCKER_INSTALL'].to_s.downcase
-else
-  dockerinstall = "true"
+  if scaleioinstall == "true" && dockerinstall == "false"
+    scaleiogwdocker = "false"
+  end
 end
 
 # Install REX-Ray automatically
 if ENV['VG_REXRAY_INSTALL']
-  rexrayinstall = ENV['SCALEIO_REXRAY_INSTALL'].to_s.downcase
+  rexrayinstall = ENV['VG_REXRAY_INSTALL'].to_s.downcase
 else
   rexrayinstall = "true"
 end
 
 # Install and Configure Docker Swarm Automatically
 if ENV['VG_SWARM_INSTALL']
-  swarminstall = ENV['SCALEIO_SWARM_INSTALL'].to_s.downcase
+  swarminstall = ENV['VG_SWARM_INSTALL'].to_s.downcase
 else
   swarminstall = "false"
 end
@@ -63,7 +66,7 @@ end
 # this environment variable is used to set the mount of RAM for MDM2 and TB. MDM1 always gets 3GB.
 # must be set in 1024 amounts
 if ENV['VG_SCALEIO_RAM']
-  vmram = ENV['SCALEIO_RAM'].to_s.downcase
+  vmram = ENV['VG_SCALEIO_RAM'].to_s.downcase
 else
   vmram = "1024"
 end
