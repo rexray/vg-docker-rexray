@@ -3,23 +3,36 @@ vg-docker-rexray
 
 # Description
 
-Automatically deploy Docker with REX-Ray in an isolated environment on top of VirtualBox to test containers with persistent applications.
+Automatically deploy Docker and REX-Ray in an isolated environment on top of VirtualBox to test containers with persistent applications including an option of using Docker Swarm
 
-Environment Details:
+## Quick Start
 
-- Deploy three (3) CentOS 7.3 nodes on top of VirtualBox
-- By default, the latest stable version of [Docker](https://docker.com) is installed. If this is set to false, then Docker is not installed.
-- By default, each node gets installed with [Dell EMC ScaleIO](https://www.dellemc.com/en-us/storage/scaleio/index.htm) software. Configuration happens automatically to have a fully redundant ScaleIO cluster. If this environment variable is set to `false`, then the ScaleIO gateway is installed in a traditional way not using a Docker image.
-- By default, [REX-Ray](https://github.com/codedellemc/rexray) is installed on each node and configured automatically according to the above.
-  - If ScaleIO is installed, REX-Ray is configured to communicate to the ScaleIO Gateway
-  - If ScaleIO is NOT installed, REX-Ray is configured to utilize local VirtualBox Volumes
-- Optionally, [Docker Swarm](https://docs.docker.com/engine/swarm/) can be configured for the cluster by setting the environment variable `export VG_SWARM_INSTALL=true`.
+#### Deploy with Dell EMC ScaleIO Storage
+```
+$ vagrant up
+```
 
-## Requirements:
+#### Deploy with Local VirtualBox Media
+In a terminal window, start the VirtualBox API SOAP Service
+```
+$ VBoxManage setproperty websrvauthlibrary null
+$ vboxwebsrv -H 0.0.0.0 -v
+```
 
-VirtualBox and Vagrant
+```
+$ export VG_SCALEIO_INSTALL=false
+$ vagrant up
+```
 
 ## Usage
+Environment Details:
+
+- Deploys three (3) CentOS 7.3 nodes on top of VirtualBox
+- By default, the latest stable version of [Docker](https://docker.com) is installed. If `VG_DOCKER_INSTALL` is set to false, then Docker is not installed.
+- By default, each node gets installed with [Dell EMC ScaleIO](https://www.dellemc.com/en-us/storage/scaleio/index.htm) software. Configuration happens automatically to have a fully redundant ScaleIO cluster. If `VG_SCALEIO_INSTALL` is set to `false`, then ScaleIO is not installed and VirtualBox is configured for Virutal Media.
+  - The ScaleIO gateway is installed as a Docker image on the `master` machine. If `VG_SCALEIO_GW_DOCKER` is set to false, then the ScaleIO Gateway is installed as a traditional linux service on `master`.
+- By default, [REX-Ray](https://github.com/codedellemc/rexray) is installed on each node and configured automatically according to the storage backing service (scaleio or virtualbox).
+- Optionally, [Docker Swarm](https://docs.docker.com/engine/swarm/) can be configured for the cluster by setting the environment variable `export VG_SWARM_INSTALL=true`.
 
 Set the following Environment Variables to `true` or `false` for your needs (must use `export`)
 
@@ -27,9 +40,10 @@ Set the following Environment Variables to `true` or `false` for your needs (mus
  - `VG_SCALEIO_GW_DOCKER` - Default is `true` which installs the Gateway as a Docker image. `false` will install it as a traditional Linux service.
  - `VG_DOCKER_INSTALL` - Default is `true`.
  - `VG_REXRAY_INSTALL` - Default is `true`.
- - `VG_SWARM_INSTALL` - Default is `false`. Set to `true` to automatically configure Docker Swarm.
- - `VG_SCALEIO_RAM` - Default is `1024`. Depending on the docker images being used, RAM needs to be increased to 1.5GB or 2GB for node01 and node02. Master will always use 3GB
+ - `VG_SWARM_INSTALL` - Default is `false`. Set to `true` to automatically configure Docker Swarm with `master` being the Docker Swarm master.
+ - `VG_SCALEIO_RAM` - Default is `1024`. Depending on the docker images being used, RAM needs to be increased to 1.5GB or 2GB for node01 and node02. Master will always use 3GB.
  - `VG_SCALEIO_VERIFY_FILES` - Default is `true`. This will verify the ScaleIO package is available for download.
+ - `VG_VOLUME_DIR` - Default will use the current working path (`pwd`) for placement of volumes.
 
 1. `git clone https://github.com/thecodeteam/vg-docker-rexray`
 2. `cd vg-docker-rexray`
@@ -42,21 +56,16 @@ Note, the cluster will come up with the default unlimited license for [Dell EMC 
 
 To login to the nodes, use the following commands: `vagrant ssh master`, `vagrant ssh node01`, or `vagrant ssh node02`.
 
-### Dell EMC ScaleIO Install
-
-By default this is set to `true` and can be overridden using `export VG_SCALEIO_INSTALL=false`.
-
-If `true`, a fully functional ScaleIO cluster is installed with IM, MDM, SDC and SDS on three nodes.
-
-### Docker and REX-Ray
+## Using Docker and REX-Ray
 
 Docker and REX-Ray will automatically be installed on all three nodes but can be overridden using the Environment Variables above. Each will configure REX-Ray to manage ScaleIO or local VirtualBox volumes for persistent applications in containers.
 
-To run a container with persistent data, from any of the cluster nodes you can run the following examples:
+To run a container with persistent data, from any of the cluster nodes you can run the following examples (the examples do not change based on the storage used. REX-Ray abstracts the storage provider so commands are universal):
 
 Pre-provision new volumes with REX-Ray:
 ```
 sudo rexray volume create test --size=16
+sudo rexray volume ls
 ```
 
 **Automatically provision new volumes on the fly when containers are created**
@@ -77,13 +86,13 @@ docker run -d --volume-driver=rexray -v mysql-data:/var/lib/mysql -e MYSQL_ROOT_
 
 Visit the [{code} Labs](https://github.com/thecodeteam/labs) for more examples using Postgres and Minecraft.
 
-##### Docker High Availability
+#### Docker High Availability
 
 Since the nodes all have access to centralized storage, fail over services with REX-Ray are available by stopping a container with a persistent volume on one host, and start it on another. Docker's integration with REX-Ray will automatically map the same volume to the new container, and your application can continue working as intended.
 
-### Docker Swarm
+## Docker Swarm
 
- `master` machine takes care of management roles because this is the ScaleIO Gateway for API communication. `node01` and `node02` are configured as Worker nodes with no management functionality.
+`master` machine has been designated for the management role because when ScaleIO is utilized, the ScaleIO Gateway for API communication is installed on this machine. `node01` and `node02` are configured as Worker nodes with no management functionality.
 
 Automatically build a Swarm cluster with `export VG_SWARM_INSTALL=true` as an environment variable.
 
@@ -100,9 +109,11 @@ Use `docker service ps pg` to see which node it was scheduled on. Go to that nod
 If it doesn't work, restart the service on the node, go to the other and download the image using `docker pull postgres` and start again.
 
 
-### ScaleIO GUI
+## ScaleIO GUI
 
-The ScaleIO GUI is automatically extracted and put into the `vagrant/scaleio/gui` directory, just run `run.sh` and it should start up. Connect to your instance with the credentials outlined in the [Cluster install function](# Cluster install function).
+The ScaleIO GUI is automatically extracted and put into the `vagrant/scaleio/gui` directory, just run `run.sh` and it should start up. Connect to your instance with the credentials:
+ - Username: admin
+ - Password: Scaleio123
 
 The end result will look something like this:
 

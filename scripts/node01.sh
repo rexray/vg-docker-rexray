@@ -52,6 +52,10 @@ do
     REXRAYINSTALL="$2"
     shift
     ;;
+    -dir|--volumedir)
+    VOLUMEDIR="$2"
+    shift
+    ;;
     -ds|--swarminstall)
     SWARMINSTALL="$2"
     shift
@@ -74,6 +78,7 @@ echo PASSWORD    = "${PASSWORD}"
 echo SCALEIOINSTALL   =  "${SCALEIOINSTALL}"
 echo DOCKERINSTALL     = "${DOCKERINSTALL}"
 echo REXRAYINSTALL     = "${REXRAYINSTALL}"
+echo VOLUMEDIR     = "${VOLUMEDIR}"
 echo SWARMINSTALL     = "${SWARMINSTALL}"
 echo ZIP_OS    = "${ZIP_OS}"
 
@@ -140,8 +145,18 @@ if [ "${SCALEIOINSTALL}" == "true" ]; then
 fi
 
 if [ "${REXRAYINSTALL}" == "true" ]; then
-  echo "Installing REX-Ray"
-  /vagrant/scripts/rexray.sh
+  if [ "${SCALEIOINSTALL}" == "true" ]; then
+    echo "Installing REX-Ray and Configuring for ScaleIO"
+    /vagrant/scripts/rexray-scaleio.sh
+  else
+    echo "Installing REX-Ray and Configuring for VirtualBox Media Local Volumes"
+    /vagrant/scripts/rexray-vbox.sh
+    sed -i "s|/tmp|${VOLUMEDIR}|" /etc/rexray/config.yml
+    systemctl daemon-reload
+    systemctl start rexray
+    systemctl enable rexray
+    #sed -i '/.*volumePath.*/c\\\x20\x20volumePath: \"#{VOLUMEDIR}\"' /etc/rexray/config.yml
+  fi
 fi
 
 if [ "${SWARMINSTALL}" == "true" ]; then

@@ -38,14 +38,20 @@ else
   dockerinstall = "true"
 end
 
-#Install The ScaleIO Gateway the traditional way or using a container
-if ENV['VG_SCALEIO_GW_DOCKER']
-  scaleiogwdocker = ENV['VG_SCALEIO_GW_DOCKER'].to_s.downcase
-else
-  scaleiogwdocker = "true"
-  if scaleioinstall == "true" && dockerinstall == "false"
-    scaleiogwdocker = "false"
+#Evaluate is ScaleIO is going to be needed
+if scaleioinstall == "true"
+  #Install The ScaleIO Gateway the traditional way or using a container
+  if ENV['VG_SCALEIO_GW_DOCKER']
+    scaleiogwdocker = ENV['VG_SCALEIO_GW_DOCKER'].to_s.downcase
+  else
+    if scaleioinstall == "true" && dockerinstall == "false"
+      scaleiogwdocker = "false"
+    else
+      scaleiogwdocker = "true"
+    end
   end
+else
+  scaleiogwdocker = "none"
 end
 
 # Install REX-Ray automatically
@@ -76,6 +82,14 @@ if ENV['VG_SCALEIO_VERIFY_FILES']
   verifyfiles = ENV['SCALEIO_VERIFY_FILES'].to_s.downcase
 else
   verifyfiles = "true"
+end
+
+#Volume Directory needed for VirtualBox volumes when ScaleIO isn't used.
+# Create a static place or it will use the locally working path
+if ENV['VG_VOLUME_DIR']
+  volumedir = ENV['VG_VOLUME_DIR'].to_s.downcase
+else
+  volumedir = "#{ENV['PWD']}/Volumes"
 end
 
 # version of installation package
@@ -118,6 +132,8 @@ Vagrant.configure("2") do |config|
       node_config.vm.host_name = "#{node[:hostname]}.#{domain}"
       node_config.vm.provider :virtualbox do |vb|
         vb.customize ["modifyvm", :id, "--memory", vmram]
+        vb.customize ["storagectl", :id, "--name", "SATA Controller", "--portcount", 30, "--hostiocache", "on"]
+        vb.customize ["modifyvm", :id, "--macaddress1", "auto"]
       end
 
       if node[:hostname] == "master"
@@ -129,7 +145,7 @@ Vagrant.configure("2") do |config|
 
         node_config.vm.provision "shell" do |s|
           s.path = "scripts/master.sh"
-          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -si #{scaleioinstall} -gw #{scaleiogwdocker} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall}"
+          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -si #{scaleioinstall} -gw #{scaleiogwdocker} -dk #{dockerinstall} -r #{rexrayinstall} -dir #{volumedir} -ds #{swarminstall}"
         end
       end
 
@@ -137,7 +153,7 @@ Vagrant.configure("2") do |config|
         node_config.vm.network "private_network", ip: "#{secondmdmip}"
         node_config.vm.provision "shell" do |s|
           s.path = "scripts/node01.sh"
-          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -si #{scaleioinstall} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall}"
+          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -si #{scaleioinstall} -dk #{dockerinstall} -r #{rexrayinstall} -dir #{volumedir} -ds #{swarminstall}"
         end
       end
 
@@ -145,7 +161,7 @@ Vagrant.configure("2") do |config|
         node_config.vm.network "private_network", ip: "#{tbip}"
         node_config.vm.provision "shell" do |s|
           s.path = "scripts/node02.sh"
-          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -si #{scaleioinstall} -dk #{dockerinstall} -r #{rexrayinstall} -ds #{swarminstall} -vf #{verifyfiles}"
+          s.args = "-o #{os} -zo #{zip_os} -v #{version} -n #{packagename} -d #{device} -f #{firstmdmip} -s #{secondmdmip} -tb #{tbip} -i #{siinstall} -p #{password} -si #{scaleioinstall} -dk #{dockerinstall} -r #{rexrayinstall} -dir #{volumedir} -ds #{swarminstall} -vf #{verifyfiles}"
         end
       end
 
