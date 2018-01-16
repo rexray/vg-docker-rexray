@@ -1,7 +1,0 @@
-./ScaleIO*
-.vagrant
-.chef/syntaxcache/*
-.chef/trusted_certs/*
-*.vdi
-gui/*
-secrets/*
