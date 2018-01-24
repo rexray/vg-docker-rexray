@@ -31,7 +31,7 @@ Environment Details:
 - By default, the latest stable version of [Docker](https://docker.com) is installed. If `VG_DOCKER_INSTALL` is set to false, then Docker is not installed.
 - By default, each node gets installed with [Dell EMC ScaleIO](https://www.dellemc.com/en-us/storage/scaleio/index.htm) software. Configuration happens automatically to have a fully redundant ScaleIO cluster. If `VG_SCALEIO_INSTALL` is set to `false`, then ScaleIO is not installed and VirtualBox is configured for Virutal Media.
   - The ScaleIO gateway is installed as a Docker image on the `master` machine. If `VG_SCALEIO_GW_DOCKER` is set to false, then the ScaleIO Gateway is installed as a traditional linux service on `master`.
-- By default, [REX-Ray](https://github.com/codedellemc/rexray) is installed on each node and configured automatically according to the storage backing service (scaleio or virtualbox).
+- By default, [REX-Ray](https://github.com/thecodeteam/rexray) is installed on each node and configured automatically according to the storage backing service (scaleio or virtualbox).
 - Optionally, [Docker Swarm](https://docs.docker.com/engine/swarm/) can be configured for the cluster by setting the environment variable `export VG_SWARM_INSTALL=true`.
 
 Set the following Environment Variables to `true` or `false` for your needs (must use `export`)
@@ -111,11 +111,11 @@ If it doesn't work, restart the service on the node, go to the other and downloa
 
 ## ScaleIO GUI
 
-The ScaleIO GUI is automatically extracted and put into the `vagrant/scaleio/gui` directory, just run `run.sh` and it should start up. Connect to your instance with the credentials:
+The ScaleIO GUI is automatically extracted and put into the `vagrant/scaleio/gui` directory when ScaleIO is installed. Execute `./run.sh` from the `/gui` directory. Connect to your instance with the credentials:
  - Username: admin
  - Password: Scaleio123
 
-The end result will look something like this:
+The end result will look like this:
 
 ![alt text](docs/images/scaleio-docker-rexray.png)
 
@@ -129,4 +129,4 @@ Create a fork of the project into your own repository. Make all your necessary c
 
 # Support
 
-Please file bugs and issues on the [GitHub issues page](https://github.com/codedellemc/vagrant/issues). This is to help keep track and document everything related to this repo. For general discussions and further support you can join the [{code} by Dell EMC Community Slack](http://community.codedellemc.com/). The code and documentation are released with no warranties or SLAs and are intended to be supported through a community driven process.
+Please file bugs and issues on the [GitHub issues page](https://github.com/thecodeteam/vg-docker-rexray/issues). This is to help keep track and document everything related to this repo. For general discussions and further support you can join the [{code} Community Slack](http://community.thecodeteam.com/). The code and documentation are released with no warranties or SLAs and are intended to be supported through a community driven process.
