@@ -1,4 +1,4 @@
-curl -sSL https://dl.bintray.com/emccode/rexray/install | sh -s -- stable
+curl -sSL https://rexray.io/install | sh -s -- stable
 cat << EOF > /etc/rexray/config.yml
 libstorage:
   service: scaleio
